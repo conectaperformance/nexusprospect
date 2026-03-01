@@ -483,65 +483,71 @@ const Dashboard: React.FC = () => {
                 )}
             </div>
 
-            {/* Tabela Inferior (Últimas Campanhas)*/}
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                <div className="p-6 border-b border-slate-100 flex justify-between items-center">
-                    <div>
-                        <h2 className="text-lg font-bold text-slate-900">Campanhas Recentes</h2>
-                        <p className="text-sm text-slate-500">Acompanhamento detalhado das últimas execuções</p>
-                    </div>
+            {/* Tabela Inferior (Últimas Campanhas) */}
+            <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden mt-6">
+                <div className="p-6 border-b border-slate-100">
+                    <h2 className="text-lg font-bold text-slate-900">Campanhas Recentes</h2>
+                    <p className="text-sm text-slate-500">Acompanhamento detalhado das últimas execuções</p>
                 </div>
                 <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse min-w-[600px]">
+                    <table className="w-full text-left border-collapse min-w-[700px]">
                         <thead>
-                            <tr className="bg-slate-50/50 text-slate-500 text-xs uppercase tracking-wider">
-                                <th className="px-6 py-4 font-medium">Campanha</th>
-                                <th className="px-6 py-4 font-medium">Status</th>
-                                <th className="px-6 py-4 font-medium text-right">Sucessos</th>
-                                <th className="px-6 py-4 font-medium text-right">Falhas</th>
-                                <th className="px-6 py-4 font-medium text-right">Total Leads</th>
+                            <tr className="border-b border-slate-100">
+                                <th className="px-6 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">Campanha</th>
+                                <th className="px-6 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest text-center">Status</th>
+                                <th className="px-6 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest text-center">Sucessos</th>
+                                <th className="px-6 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest text-center">Falhas</th>
+                                <th className="px-6 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest text-right">Total Leads</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-slate-100">
+                        <tbody className="divide-y divide-slate-50">
                             {campaigns.length === 0 ? (
                                 <tr>
-                                    <td colSpan={5} className="px-6 py-8 text-center text-sm text-slate-500">
-                                        Nenhuma campanha recente para exibir.
+                                    <td colSpan={5} className="px-6 py-12 text-center text-sm text-slate-500">
+                                        Nenhuma campanha para exibir.
                                     </td>
                                 </tr>
                             ) : (
                                 campaigns.slice(0, 5).map(camp => (
-                                    <tr key={camp.id} className="hover:bg-slate-50/50 transition-colors">
-                                        <td className="px-6 py-4">
-                                            <div className="font-medium text-slate-900">{camp.name}</div>
-                                            <div className="text-xs text-slate-500">{new Date(camp.created_at).toLocaleDateString('pt-BR')}</div>
+                                    <tr key={camp.id} className="hover:bg-slate-50/50 transition-colors group">
+                                        <td className="px-6 py-5">
+                                            <div className="font-bold text-slate-800 text-sm mb-1">{camp.name}</div>
+                                            <div className="text-xs text-slate-400 font-medium">{new Date(camp.created_at).toLocaleDateString('pt-BR')}</div>
                                         </td>
-                                        <td className="px-6 py-4">
-                                            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${camp.status === 'completed' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
-                                                camp.status === 'active' || camp.status === 'in_progress' ? 'bg-blue-50 text-blue-700 border border-blue-200' :
-                                                    camp.status === 'failed' ? 'bg-rose-50 text-rose-700 border border-rose-200' :
-                                                        'bg-slate-100 text-slate-700 border border-slate-200'
+                                        <td className="px-6 py-5 text-center">
+                                            <span className={`inline-flex items-center px-3 py-1 rounded-full text-[11px] font-bold tracking-wide ${camp.status === 'completed' ? 'bg-emerald-50 text-emerald-600 border border-emerald-200/60' :
+                                                    camp.status === 'active' || camp.status === 'in_progress' ? 'bg-blue-50 text-blue-600 border border-blue-200/60' :
+                                                        camp.status === 'failed' ? 'bg-rose-50 text-rose-600 border border-rose-200/60' :
+                                                            'bg-slate-100 text-slate-500 border border-slate-200/60'
                                                 }`}>
                                                 {camp.status === 'completed' ? 'Concluída' :
                                                     camp.status === 'active' ? 'Ativa' :
-                                                        camp.status === 'in_progress' ? 'Em Progresso' :
+                                                        camp.status === 'in_progress' ? 'Progresso' :
                                                             camp.status === 'failed' ? 'Falha' :
                                                                 camp.status === 'paused' ? 'Pausada' :
                                                                     'Pendente'}
                                             </span>
                                         </td>
-                                        <td className="px-6 py-4 text-right">
-                                            <span className="text-emerald-600 font-medium bg-emerald-50 px-2 py-1 rounded-md">{camp.sent_count || 0}</span>
+                                        <td className="px-6 py-5 text-center">
+                                            <span className="inline-flex text-emerald-600 font-bold bg-emerald-50/80 px-2.5 py-1 rounded-md text-sm min-w-[32px] justify-center">
+                                                {camp.sent_count || 0}
+                                            </span>
                                         </td>
-                                        <td className="px-6 py-4 text-right">
+                                        <td className="px-6 py-5 text-center">
                                             {camp.failed_count > 0 ? (
-                                                <span className="text-rose-600 font-medium bg-rose-50 px-2 py-1 rounded-md">{camp.failed_count}</span>
+                                                <span className="inline-flex text-rose-500 font-bold bg-rose-50/80 px-2.5 py-1 rounded-md text-sm min-w-[32px] justify-center">
+                                                    {camp.failed_count}
+                                                </span>
                                             ) : (
-                                                <span className="text-slate-400">0</span>
+                                                <span className="inline-flex text-rose-300 font-medium px-2.5 py-1 text-sm min-w-[32px] justify-center">
+                                                    0
+                                                </span>
                                             )}
                                         </td>
-                                        <td className="px-6 py-4 text-right font-medium text-slate-900">
-                                            {camp.total_leads || 0}
+                                        <td className="px-6 py-5 text-right">
+                                            <span className="font-bold text-slate-800 text-sm">
+                                                {camp.total_leads || 0}
+                                            </span>
                                         </td>
                                     </tr>
                                 ))
@@ -550,7 +556,6 @@ const Dashboard: React.FC = () => {
                     </table>
                 </div>
             </div>
-
         </div>
     );
 };
