@@ -382,9 +382,16 @@ const Dashboard: React.FC = () => {
                                     dataKey="name"
                                     axisLine={false}
                                     tickLine={false}
-                                    tick={{ fill: '#94a3b8', fontSize: 12, fontWeight: 500 }}
-                                    dy={10}
-                                    interval={chartData.length > 10 ? Math.ceil(chartData.length / 7) - 1 : 0}
+                                    interval={0}
+                                    tick={{
+                                        fill: '#94a3b8',
+                                        fontSize: timeFilter === '30' ? 10 : timeFilter === '15' ? 11 : 12,
+                                        fontWeight: 500,
+                                    }}
+                                    angle={timeFilter === '30' ? -45 : timeFilter === '15' ? -35 : 0}
+                                    textAnchor={timeFilter === '30' || timeFilter === '15' ? 'end' : 'middle'}
+                                    dy={timeFilter === '30' ? 10 : timeFilter === '15' ? 8 : 10}
+                                    height={timeFilter === '30' ? 60 : timeFilter === '15' ? 50 : 35}
                                     tickMargin={5}
                                 />
                                 <YAxis
