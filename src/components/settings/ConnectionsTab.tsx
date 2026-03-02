@@ -420,18 +420,6 @@ const ConnectionsTab: React.FC = () => {
                             Conecte sua primeira instância WhatsApp para começar a gerenciar suas mensagens e disparos.
                         </p>
                     </div>
-                    <button
-                        onClick={handleCreate}
-                        disabled={actionLoading === 'create'}
-                        className="inline-flex items-center space-x-2 px-6 py-3 bg-[#ffd700] text-slate-900 rounded-2xl font-bold shadow-xl shadow-[#ffd700]/30 hover:bg-[#f8ab15] transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                        {actionLoading === 'create' ? (
-                            <Loader2 size={18} className="animate-spin" />
-                        ) : (
-                            <Plus size={18} />
-                        )}
-                        <span>Criar Primeira Conexão</span>
-                    </button>
                 </div>
             )}
 
