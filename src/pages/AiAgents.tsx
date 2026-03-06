@@ -240,7 +240,7 @@ const AiAgents: React.FC = () => {
                     <label className="block text-sm font-bold text-slate-700 mb-4">Selecione o Agente *</label>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         {AGENT_TYPES.map(({ id, label, description, icon: Icon }) => {
-                            const isLocked = isStarter && (id === 'support' || id === 'followup');
+                            const isLocked = isStarter && id === 'followup';
 
                             return (
                                 <button
