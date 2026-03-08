@@ -5,12 +5,14 @@ import {
   User,
   Link2,
   Cable,
+  Webhook,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import IntegrationsTab from '../components/settings/IntegrationsTab';
 import ConnectionsTab from '../components/settings/ConnectionsTab';
+import WebhookTab from '../components/settings/WebhookTab';
 
-type SettingsTab = 'integrations' | 'connections';
+type SettingsTab = 'integrations' | 'connections' | 'webhook';
 
 const SettingsPage: React.FC = () => {
   const { user, signOut } = useAuth();
@@ -64,6 +66,7 @@ const SettingsPage: React.FC = () => {
           <nav className="space-y-1">
             <TabItem id="integrations" label="Integrações" icon={Link2} />
             <TabItem id="connections" label="Conexão do WhatsApp" icon={Cable} />
+            <TabItem id="webhook" label="Webhook" icon={Webhook} />
 
             <div className="pt-4 border-t border-slate-200 mt-4">
               <button
@@ -87,6 +90,10 @@ const SettingsPage: React.FC = () => {
 
             {activeTab === 'connections' && (
               <ConnectionsTab />
+            )}
+
+            {activeTab === 'webhook' && (
+              <WebhookTab />
             )}
           </div>
         </div>

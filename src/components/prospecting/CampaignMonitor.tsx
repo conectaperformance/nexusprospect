@@ -40,7 +40,7 @@ interface CampaignStats {
     pending: number;
 }
 
-const REFRESH_INTERVAL = 15000; // 15 segundos
+const REFRESH_INTERVAL = 30000; // 30 segundos
 
 const CampaignMonitor: React.FC = () => {
     const { user } = useAuth();

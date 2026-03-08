@@ -775,13 +775,13 @@ const AdministrationDashboard: React.FC = () => {
 
             if (kpiData) setStoredKpis(kpiData);
 
-            // 2. Fetch ALL Transactions (Limit 5000)
+            // 2. Fetch ALL Transactions (Limit 500)
             const { data: trxData } = await supabase
                 .from('financial_transactions')
                 .select('*')
                 .eq('user_id', user?.id)
                 .order('transaction_date', { ascending: false })
-                .limit(5000);
+                .limit(500);
 
             if (trxData) {
                 const mappedTrx = trxData.map(t => ({ ...t, amount: t.amount || 0 })); // Ensure amount
@@ -979,7 +979,7 @@ const AdministrationDashboard: React.FC = () => {
                                     </div>
                                 </div>
                                 <div className="h-1 w-full bg-emerald-100 mt-4 rounded-full overflow-hidden">
-                                    <div className="h-full bg-emerald-500 w-full animate-pulse"></div>
+                                    <div className="h-full bg-emerald-500 w-full"></div>
                                 </div>
                             </div>
 

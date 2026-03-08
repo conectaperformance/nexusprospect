@@ -76,8 +76,8 @@ const GoogleMapsLeadSearch: React.FC = () => {
 
     useEffect(() => {
         fetchLeads();
-        // Auto-refresh a cada 10 segundos
-        const interval = setInterval(fetchLeads, 10000);
+        // Auto-refresh a cada 30 segundos
+        const interval = setInterval(fetchLeads, 30000);
         return () => clearInterval(interval);
     }, [fetchLeads]);
 
@@ -265,7 +265,7 @@ const GoogleMapsLeadSearch: React.FC = () => {
                             <li>O Google Maps abrirá em nova aba — a extensão inicia <strong>automaticamente</strong></li>
                             <li>Um painel na tela mostrará o <strong>progresso: barra, contadores e nomes</strong></li>
                             <li>Cada lead extraído é <strong>enviado automaticamente</strong> para o Nexus360</li>
-                            <li>Volte aqui — os leads já estarão na tabela abaixo <strong>(atualiza a cada 10s)</strong></li>
+                            <li>Volte aqui — os leads já estarão na tabela abaixo <strong>(atualiza a cada 30s)</strong></li>
                         </ol>
                     </div>
                 )}
