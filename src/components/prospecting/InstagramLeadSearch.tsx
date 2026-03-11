@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../../services/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import {
-    MapPin,
+    Instagram,
     Search,
     ExternalLink,
     Download,
@@ -29,7 +29,7 @@ import {
 } from 'lucide-react';
 import SaveLeadsModal from './SaveLeadsModal';
 
-interface GmapsLead {
+interface InstaLead {
     id: string;
     name: string;
     phone: string | null;
@@ -46,44 +46,40 @@ interface GmapsLead {
 
 const IDLE_POLL_INTERVAL = 30000; // 30s
 const ACTIVE_POLL_INTERVAL = 5000; // 5s
-const MAX_UNCHANGED_TICKS = 24; // 24 * 5s = 120s (2 minutes of no new leads before sleeping)
+const MAX_UNCHANGED_TICKS = 24;
+
 const ITEMS_PER_PAGE = 20;
 
-const GoogleMapsLeadSearch: React.FC = () => {
+const InstagramLeadSearch: React.FC = () => {
     const { user } = useAuth();
     const [searchTerm, setSearchTerm] = useState('');
-    const [leads, setLeads] = useState<GmapsLead[]>([]);
+    const [leads, setLeads] = useState<InstaLead[]>([]);
     const [loading, setLoading] = useState(false);
     const [showInstructions, setShowInstructions] = useState(false);
     const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
-    // Seleção de Leads
     const [selectedLeads, setSelectedLeads] = useState<string[]>([]);
     const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
 
-    // Paginação
     const [currentPage, setCurrentPage] = useState(1);
 
-    // Smart Polling States
     const [pollInterval, setPollInterval] = useState<number>(IDLE_POLL_INTERVAL);
     const [isActivelyPolling, setIsActivelyPolling] = useState(false);
 
-    // Refs for Smart Polling internal logic
     const lastLeadsCountRef = useRef<number>(0);
     const unchangedTicksRef = useRef<number>(0);
     const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
-    // Carregar leads do Supabase
     const fetchLeads = useCallback(async (isBackground = false) => {
         if (!user) return;
-        if (!isBackground) setLoading(true); // Don't show loading spinner on background polls
+        if (!isBackground) setLoading(true);
 
         try {
             const { data, error } = await supabase
                 .from('leads')
                 .select('*')
                 .eq('user_id', user.id)
-                .eq('source', 'google_maps')
+                .eq('source', 'instagram')
                 .is('client_id', null)
                 .order('created_at', { ascending: false })
                 .limit(200);
@@ -93,17 +89,13 @@ const GoogleMapsLeadSearch: React.FC = () => {
             const fetchedLeads = data || [];
             setLeads(fetchedLeads);
 
-            // Smart Polling Logic: check if count changed
             if (isActivelyPolling) {
                 if (fetchedLeads.length > lastLeadsCountRef.current) {
-                    // We got new data! Reset sleep counter.
                     unchangedTicksRef.current = 0;
                     lastLeadsCountRef.current = fetchedLeads.length;
                 } else {
-                    // No new data
                     unchangedTicksRef.current += 1;
                     if (unchangedTicksRef.current >= MAX_UNCHANGED_TICKS) {
-                        console.log('Extração inativa detectada. Retornando ao modo ocioso (30s).');
                         deactivateFastPolling();
                     }
                 }
@@ -118,9 +110,8 @@ const GoogleMapsLeadSearch: React.FC = () => {
         }
     }, [user, isActivelyPolling]);
 
-    // Setup the automated polling
     useEffect(() => {
-        fetchLeads(); // initial fetch
+        fetchLeads();
 
         intervalRef.current = setInterval(() => {
             fetchLeads(true);
@@ -135,7 +126,6 @@ const GoogleMapsLeadSearch: React.FC = () => {
         setIsActivelyPolling(true);
         setPollInterval(ACTIVE_POLL_INTERVAL);
         unchangedTicksRef.current = 0;
-        // Immediate fetch to start the flow immediately
         fetchLeads(true);
     };
 
@@ -145,19 +135,6 @@ const GoogleMapsLeadSearch: React.FC = () => {
         unchangedTicksRef.current = 0;
     };
 
-    // Abrir Google Maps com o termo de busca e ligar motores
-    const openGoogleMaps = () => {
-        if (!searchTerm.trim()) return;
-
-        // Ativa o fast polling imediatamente quando o usuário viaja pro Maps
-        activateFastPolling();
-
-        const q = encodeURIComponent(searchTerm.trim());
-        const url = `https://www.google.com/maps/search/${q}`;
-        window.open(url, '_blank');
-    };
-
-    // Deletar lead individual
     const deleteLead = async (id: string) => {
         try {
             const { error } = await supabase.from('leads').delete().eq('id', id);
@@ -169,7 +146,6 @@ const GoogleMapsLeadSearch: React.FC = () => {
         }
     };
 
-    // Deletar todos os leads
     const deleteAllLeads = async () => {
         if (!window.confirm('Tem certeza que deseja apagar TODOS os leads extraídos? Esta ação não pode ser desfeita.')) {
             return;
@@ -177,12 +153,11 @@ const GoogleMapsLeadSearch: React.FC = () => {
         
         setLoading(true);
         try {
-            // Remove apenas os leads da conta atual que originaram do maps e AINDA NÃO foram salvos em pastas
             const { error } = await supabase
                 .from('leads')
                 .delete()
                 .eq('user_id', user?.id)
-                .eq('source', 'google_maps')
+                .eq('source', 'instagram')
                 .is('client_id', null);
                 
             if (error) throw error;
@@ -198,13 +173,11 @@ const GoogleMapsLeadSearch: React.FC = () => {
         }
     };
 
-    // Alternar seleção
     const toggleSelect = (id: string) => {
         setSelectedLeads(prev => prev.includes(id) ? prev.filter(leadId => leadId !== id) : [...prev, id]);
     };
 
-    // Alternar seleção de todos de um grupo
-    const toggleAll = (termLeads: GmapsLead[]) => {
+    const toggleAll = (termLeads: InstaLead[]) => {
         const allSelected = termLeads.every(l => selectedLeads.includes(l.id));
         if (allSelected) {
             setSelectedLeads(prev => prev.filter(id => !termLeads.some(l => l.id === id)));
@@ -214,10 +187,8 @@ const GoogleMapsLeadSearch: React.FC = () => {
         }
     };
 
-    // Paginação
     const totalPages = Math.max(1, Math.ceil(leads.length / ITEMS_PER_PAGE));
     
-    // Evitar que o usuário fique preso em uma página que não existe mais após deletar/mover
     useEffect(() => {
         if (currentPage > totalPages) {
             setCurrentPage(totalPages);
@@ -227,7 +198,6 @@ const GoogleMapsLeadSearch: React.FC = () => {
     const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
     const paginatedLeads = leads.slice(startIndex, startIndex + ITEMS_PER_PAGE);
 
-    // Agrupar leads por termo de busca APENAS baseados na página atual
     const searchTerms = [...new Set(paginatedLeads.map(l => l.search_term || 'Sem termo'))];
 
     return (
@@ -237,17 +207,21 @@ const GoogleMapsLeadSearch: React.FC = () => {
                 <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 mb-6">
                     <div>
                         <h2 className="text-xl font-black text-slate-800 flex items-center gap-2.5">
-                            <MapPin className="text-red-500" size={24} />
-                            Extrator de Leads — Google Maps
+                            <Instagram className="text-[#E1306C]" size={24} />
+                            Extrator de Leads — Instagram
                         </h2>
                         <p className="text-slate-500 mt-1 text-xs">
-                            Abra o Google Maps, faça sua busca por empresas e ative a extensão para enviar os leads para cá.
+                            Abra o Instagram, faça sua busca por perfis e ative a extensão para enviar os leads para cá.
                         </p>
                     </div>
 
                     <div className="flex flex-col items-end gap-2">
                         <a
-                            href="/extension-gmaps/"
+                            href="/extension-instagram/"
+                            onClick={(e) => {
+                                e.preventDefault();
+                                alert('Em breve!');
+                            }}
                             className="inline-flex items-center gap-2 px-4 py-2 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors"
                         >
                             <Download size={14} />
@@ -298,8 +272,8 @@ const GoogleMapsLeadSearch: React.FC = () => {
                                 <ol className="list-none space-y-2 ml-1 text-slate-500 border-l-2 border-slate-100 pl-4">
                                     <li>Vá para <a href="/settings" className="font-bold text-blue-500 hover:underline">Configurações &rarr; Webhooks</a> aqui no Nexus.</li>
                                     <li>Se ainda não gerou, clique em "Gerar URL Exclusiva".</li>
-                                    <li>Copie a <strong>URL Exclusiva Completa</strong> (algo como <code className="bg-slate-100 text-[9px] px-1 py-0.5 rounded text-slate-400">https://suainstancia123.conectalab.sbs/webhook</code>).</li>
-                                    <li>Abra o popup da extensão do Google Maps no seu navegador navegando e <strong>cole o Webhook</strong> na área "Configurar Webhook".</li>
+                                    <li>Copie a <strong>URL Exclusiva Completa</strong>.</li>
+                                    <li>Abra o popup da extensão do Instagram no seu navegador e <strong>cole o Webhook</strong> na área "Configurar Webhook".</li>
                                     <li>Pronto! Tudo que a extensão extrair cairá instantaneamente na tabela abaixo.</li>
                                 </ol>
                             </div>
@@ -570,10 +544,10 @@ const GoogleMapsLeadSearch: React.FC = () => {
                     </div>
                 ) : (
                     <div className="text-center py-16 text-slate-400 bg-slate-50 border border-slate-100 rounded-2xl border-dashed">
-                        <MapPin size={48} className="mx-auto mb-4 text-slate-300" />
+                        <Instagram size={48} className="mx-auto mb-4 text-slate-300" />
                         <p className="font-bold text-slate-500 text-sm">Nenhum lead extraído ainda</p>
                         <p className="text-xs mt-1.5 max-w-sm mx-auto text-slate-400">
-                            Configure seu Webhook na extensão, abra o Google Maps no seu navegador e inicie a extração. Os leads surgirão aqui sozinhos.
+                            Configure seu Webhook na extensão, abra o Instagram no seu navegador e inicie a extração. Os leads surgirão aqui sozinhos.
                         </p>
                     </div>
                 )}
@@ -593,7 +567,6 @@ const GoogleMapsLeadSearch: React.FC = () => {
                 onClose={() => setIsSaveModalOpen(false)}
                 selectedLeadIds={selectedLeads}
                 onSuccess={() => {
-                    // Update table UI removing the moved leads and resetting selection
                     setLeads(prev => prev.filter(l => !selectedLeads.includes(l.id)));
                     setSelectedLeads([]);
                 }}
@@ -602,4 +575,4 @@ const GoogleMapsLeadSearch: React.FC = () => {
     );
 };
 
-export default GoogleMapsLeadSearch;
+export default InstagramLeadSearch;

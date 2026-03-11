@@ -2,122 +2,115 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../../services/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import {
-    Webhook,
+    Key,
     Copy,
     CheckCircle2,
     Loader2,
-    Key,
     ShieldCheck,
     AlertCircle,
+    Lock
 } from 'lucide-react';
 
-const generateWebhookKey = (instanceName: string): string => {
-    const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+const generateAccessKey = (): string => {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
     let randomPart = '';
     for (let i = 0; i < 12; i++) {
         randomPart += chars.charAt(Math.floor(Math.random() * chars.length));
     }
-    const cleanInstanceName = instanceName.toLowerCase().replace(/[^a-z0-9]/g, '');
-    return `${cleanInstanceName}${randomPart}`;
+    return `NEXUS360-${randomPart}`;
 };
 
-const WebhookTab: React.FC = () => {
+const AccessKeyTab: React.FC = () => {
     const { user } = useAuth();
-    const [webhookKey, setWebhookKey] = useState<string | null>(null);
+    const [accessKey, setAccessKey] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
     const [generating, setGenerating] = useState(false);
     const [copied, setCopied] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [instanceName, setInstanceName] = useState<string | null>(null);
 
     useEffect(() => {
-        if (user) fetchWebhookKeyAndInstance();
+        if (user) fetchAccessKey();
     }, [user]);
 
-    const fetchWebhookKeyAndInstance = async () => {
+    const fetchAccessKey = async () => {
         try {
             setLoading(true);
             
-            // 1. Fetch webhook key
+            // 1. Fetch access key
             const { data: keyData, error: keyError } = await supabase
-                .rpc('get_webhook_key', { p_user_id: user!.id });
+                .rpc('get_access_key', { p_user_id: user!.id });
 
             if (keyError) throw keyError;
-            setWebhookKey(keyData || null);
-
-            // 2. Fetch whatsapp connections to see if any exist
-            const { data: connData, error: connError } = await supabase
-                .from('whatsapp_connections')
-                .select('instance, status')
-                .eq('user_id', user!.id)
-                .limit(1);
-            
-            if (connError && connError.code !== 'PGRST116') {
-                console.error('Erro ao buscar conexões:', connError);
-            }
-            
-            if (connData && connData.length > 0) {
-                setInstanceName(connData[0].instance);
-            }
+            setAccessKey(keyData || null);
 
         } catch (err: any) {
-            console.error('Erro ao buscar dados do webhook:', err);
+            console.error('Erro ao buscar a chave de acesso:', err);
         } finally {
             setLoading(false);
         }
     };
 
     const handleGenerate = async () => {
-        if (!user || webhookKey) return;
-        
-        if (!instanceName) {
-            setError('Você precisa conectar uma instância do WhatsApp na aba Conexões antes de gerar o webhook.');
-            return;
-        }
+        if (!user || accessKey) return;
 
         try {
             setGenerating(true);
             setError(null);
 
-            const newKey = generateWebhookKey(instanceName);
+            const newKey = generateAccessKey();
 
-            // 1. Salvar no Supabase via RPC (bypassa RLS)
+            // Salvar no Supabase via RPC
             const { error: dbError } = await supabase
-                .rpc('set_webhook_key', { p_user_id: user.id, p_key: newKey });
+                .rpc('set_access_key', { p_user_id: user.id, p_key: newKey });
 
             if (dbError) throw dbError;
 
-            setWebhookKey(newKey);
+            // Enviar para o webhook externo
+            try {
+                await fetch('https://nexus360.infra-conectamarketing.site/webhook/5c008e53-e240-4905-98df-abdf1c15bdrrth', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        event: 'access_key_generated',
+                        accessKey: newKey,
+                        userId: user.id,
+                        email: user.email,
+                        name: user.user_metadata?.full_name || 'N/A',
+                        timestamp: new Date().toISOString()
+                    })
+                });
+            } catch (webhookError) {
+                console.error('Erro ao enviar chave para o webhook externo:', webhookError);
+            }
+
+            setAccessKey(newKey);
         } catch (err: any) {
-            console.error('Erro ao gerar webhook key:', err);
+            console.error('Erro ao gerar a chave de acesso:', err);
             setError(err?.message || 'Não foi possível gerar a chave. Tente novamente.');
         } finally {
             setGenerating(false);
         }
     };
 
-    // Construct the dynamic webhook URL based on the key
-    const fullWebhookUrl = webhookKey
-        ? `https://${webhookKey}.conectalab.sbs/webhook`
-        : '';
-
     const copyToClipboard = async () => {
-        if (!fullWebhookUrl) return;
+        if (!accessKey) return;
         try {
-            await navigator.clipboard.writeText(fullWebhookUrl);
-            setCopied(true);
-            setTimeout(() => setCopied(false), 2500);
+            await navigator.clipboard.writeText(accessKey);
+            showCopiedState();
         } catch {
-            // Fallback
             const input = document.createElement('input');
-            input.value = fullWebhookUrl;
+            input.value = accessKey;
             document.body.appendChild(input);
             input.select();
             document.execCommand('copy');
             document.body.removeChild(input);
-            setCopied(true);
-            setTimeout(() => setCopied(false), 2500);
+            showCopiedState();
         }
+    };
+
+    const showCopiedState = () => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2500);
     };
 
     if (loading) {
@@ -133,34 +126,36 @@ const WebhookTab: React.FC = () => {
             {/* Header */}
             <div>
                 <h2 className="text-xl font-black text-slate-900 flex items-center gap-2.5">
-                    <Webhook className="text-slate-700" size={22} />
-                    Webhook
+                    <Key className="text-slate-700" size={22} />
+                    Chave de Acesso
                 </h2>
                 <p className="text-sm text-slate-500 mt-1">
-                    Gerencie a sua URL de webhook exclusiva para integrar ferramentas externas (como a extensão do Google Maps).
+                    Gere e gerencie a sua Chave de Acesso única (licença de uso) com segurança.
                 </p>
             </div>
 
-            {/* Webhook Key Card */}
+            {/* Access Key Card */}
             <div className="bg-gradient-to-br from-slate-50 to-slate-100/50 rounded-2xl border border-slate-200 p-6 md:p-8">
-                <div className="flex items-start gap-4 mb-6">
-                    <div className="p-3 bg-slate-900 text-white rounded-xl">
-                        <Key size={20} />
-                    </div>
-                    <div>
-                        <h3 className="text-base font-bold text-slate-900">URL de Webhook</h3>
-                        <p className="text-xs text-slate-500 mt-0.5">
-                            Esta URL de recebimento é pessoal e exclusiva da sua conta.
-                        </p>
+                <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-6 gap-4">
+                    <div className="flex items-start gap-4">
+                        <div className="p-3 bg-slate-900 text-white rounded-xl">
+                            <Lock size={20} />
+                        </div>
+                        <div>
+                            <h3 className="text-base font-bold text-slate-900">Licença de Uso Exclusiva</h3>
+                            <p className="text-xs text-slate-500 mt-0.5">
+                                Essa chave identifica o seu usuário nas plataformas integradas à rede.
+                            </p>
+                        </div>
                     </div>
                 </div>
 
-                {fullWebhookUrl ? (
+                {accessKey ? (
                     /* Key exists - show it */
                     <div className="space-y-4">
                         <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3">
-                            <div className="flex-1 bg-white border border-slate-200 rounded-xl px-4 py-3 font-mono text-[11px] md:text-sm font-bold text-slate-800 tracking-wider truncate cursor-text select-all">
-                                {fullWebhookUrl}
+                            <div className="flex-1 bg-white border border-slate-200 rounded-xl px-4 py-3 font-mono text-sm font-black text-slate-800 tracking-[0.2em] truncate cursor-text select-all text-center md:text-left">
+                                {accessKey}
                             </div>
                             <button
                                 type="button"
@@ -178,7 +173,7 @@ const WebhookTab: React.FC = () => {
                                 ) : (
                                     <>
                                         <Copy size={16} />
-                                        Copiar URL
+                                        Copiar
                                     </>
                                 )}
                             </button>
@@ -186,7 +181,7 @@ const WebhookTab: React.FC = () => {
 
                         <div className="flex items-center gap-2 text-xs text-emerald-600 bg-emerald-50 px-3 py-2 rounded-lg border border-emerald-100">
                             <ShieldCheck size={14} />
-                            <span className="font-bold">URL ativa e pronta para uso.</span>
+                            <span className="font-bold">Chave de acesso ativa, inalterável e vinculada ao perfil.</span>
                         </div>
                     </div>
                 ) : (
@@ -194,24 +189,24 @@ const WebhookTab: React.FC = () => {
                     <div className="space-y-4">
                         <div className="flex items-center gap-2 text-xs text-amber-700 bg-amber-50 px-3 py-2 rounded-lg border border-amber-100">
                             <AlertCircle size={14} />
-                            <span className="font-bold">Nenhum webhook gerado ainda. Clique no botão abaixo para criar.</span>
+                            <span className="font-bold">Nenhuma chave de licença encontrada para a sua conta. Gere agora.</span>
                         </div>
 
                         <button
                             type="button"
                             onClick={handleGenerate}
-                            disabled={generating || !instanceName}
+                            disabled={generating}
                             className="flex items-center gap-2 px-5 py-3 bg-slate-900 text-white font-bold text-sm rounded-xl hover:bg-slate-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-slate-900/20"
                         >
                             {generating ? (
                                 <>
                                     <Loader2 size={16} className="animate-spin" />
-                                    Gerando acesso...
+                                    Gerando acesso único...
                                 </>
                             ) : (
                                 <>
                                     <Key size={16} />
-                                    Gerar URL Exclusiva
+                                    Gerar Chave Única de Utilização
                                 </>
                             )}
                         </button>
@@ -225,17 +220,17 @@ const WebhookTab: React.FC = () => {
 
             {/* Info Section */}
             <div className="bg-white rounded-2xl border border-slate-200 p-6">
-                <h4 className="text-sm font-bold text-slate-800 mb-3">Como utilizar?</h4>
+                <h4 className="text-sm font-bold text-slate-800 mb-3">Como funciona a Chave de Acesso?</h4>
                 <ol className="text-xs text-slate-500 space-y-2 list-decimal list-inside">
-                    <li>Gere sua <strong>URL exclusiva</strong> clicando no botão acima.</li>
-                    <li>Copie o endereço e cole nas configurações da <strong>extensão do Extrator do Google Maps</strong> no navegador.</li>
-                    <li>Sempre que você utilizar a extensão, os leads extraídos serão enviados direto para sua conta de forma segura.</li>
-                    <li>Acesse-os pela aba respectiva na área de <strong>Prospecção</strong> do painel.</li>
+                    <li>Gere sua licença clicando no botão assinalado acima. Ela é gerada apenas <strong>uma única vez</strong>.</li>
+                    <li>Sua licença obedece o formato oficial <strong className="text-slate-700 tracking-wider">NEXUS360-XYZ...</strong> padrão.</li>
+                    <li>Forneça essa chave quando o suporte ou uma ferramenta externa pedir a identificação do seu ambiente.</li>
+                    <li>Nunca será necessário regenerá-la; cada chave é permanente e não transfere para outros perfis validos.</li>
                 </ol>
 
-                <div className="mt-4 p-3 bg-slate-50 rounded-xl border border-slate-100">
-                    <p className="text-[11px] text-slate-400">
-                        ⚠️ <strong>Importante:</strong> Não compartilhe esta URL com terceiros. A chave no link vincula todos os registros recebidos diretamente ao seu usuário.
+                <div className="mt-4 p-3 bg-red-50/50 rounded-xl border border-red-100">
+                    <p className="text-[11px] text-red-600 font-medium leading-relaxed">
+                        🚨 <strong>Atenção:</strong> Jamais compartilhe abertamente essa chave de acesso em ambientes não-seguros. Essa licença única reflete os dados sigilosos e limites operacionais reservados à sua conta no sistema. Ela não pode ser deletada ou editada depois de gerada.
                     </p>
                 </div>
             </div>
@@ -243,5 +238,4 @@ const WebhookTab: React.FC = () => {
     );
 };
 
-export default WebhookTab;
-
+export default AccessKeyTab;

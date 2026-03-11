@@ -3,6 +3,8 @@ import { Target, Send, MapPin, Instagram, Building2, Lock } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { WhatsAppCampaignForm } from '../components/prospecting/WhatsAppCampaignForm';
 import GoogleMapsLeadSearch from '../components/prospecting/GoogleMapsLeadSearch';
+import InstagramLeadSearch from '../components/prospecting/InstagramLeadSearch';
+import CnpjLeadSearch from '../components/prospecting/CnpjLeadSearch';
 
 const Prospecting: React.FC = () => {
     const { user } = useAuth();
@@ -11,7 +13,7 @@ const Prospecting: React.FC = () => {
     const [activeTab, setActiveTab] = useState<'messages' | 'maps' | 'instagram' | 'cnpj'>('messages');
 
     const TabButton = ({ id, label, icon: Icon }: { id: typeof activeTab, label: string, icon: any }) => {
-        const isLocked = id !== 'messages' && id !== 'maps';
+        const isLocked = false;
 
         return (
             <button
@@ -74,23 +76,11 @@ const Prospecting: React.FC = () => {
                 )}
 
                 {activeTab === 'instagram' && (
-                    <div className="bg-white rounded-3xl p-12 shadow-sm border border-slate-200 flex flex-col items-center justify-center text-center animate-in slide-in-from-bottom-2 duration-300">
-                        <Instagram size={48} className="text-slate-200 mb-4" />
-                        <h2 className="text-xl font-bold text-slate-700">Em Breve</h2>
-                        <p className="text-slate-500 mt-2 max-w-md">
-                            As ferramentas de busca de leads no Instagram estarão disponíveis aqui em breve.
-                        </p>
-                    </div>
+                    <InstagramLeadSearch />
                 )}
 
                 {activeTab === 'cnpj' && (
-                    <div className="bg-white rounded-3xl p-12 shadow-sm border border-slate-200 flex flex-col items-center justify-center text-center animate-in slide-in-from-bottom-2 duration-300">
-                        <Building2 size={48} className="text-slate-200 mb-4" />
-                        <h2 className="text-xl font-bold text-slate-700">Em Breve</h2>
-                        <p className="text-slate-500 mt-2 max-w-md">
-                            As ferramentas de busca rápida de leads por CNPJ estarão disponíveis aqui em breve.
-                        </p>
-                    </div>
+                    <CnpjLeadSearch />
                 )}
             </div>
         </div>
