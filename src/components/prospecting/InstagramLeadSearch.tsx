@@ -26,6 +26,7 @@ import {
     X,
     ChevronLeft,
     ChevronRight,
+    Copy,
 } from 'lucide-react';
 import SaveLeadsModal from './SaveLeadsModal';
 
@@ -58,6 +59,8 @@ const InstagramLeadSearch: React.FC = () => {
     const [showInstructions, setShowInstructions] = useState(false);
     const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
+    const [webhookKey, setWebhookKey] = useState<string | null>(null);
+    const [copied, setCopied] = useState(false);
     const [selectedLeads, setSelectedLeads] = useState<string[]>([]);
     const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
 
@@ -76,10 +79,9 @@ const InstagramLeadSearch: React.FC = () => {
 
         try {
             const { data, error } = await supabase
-                .from('leads')
+                .from('leads_instagram')
                 .select('*')
                 .eq('user_id', user.id)
-                .eq('source', 'instagram')
                 .is('client_id', null)
                 .order('created_at', { ascending: false })
                 .limit(200);
@@ -135,9 +137,27 @@ const InstagramLeadSearch: React.FC = () => {
         unchangedTicksRef.current = 0;
     };
 
+    useEffect(() => {
+        if (user) {
+            const fetchKey = async () => {
+                const { data, error } = await supabase.rpc('get_webhook_key', { p_user_id: user.id });
+                if (!error) setWebhookKey(data || null);
+            };
+            fetchKey();
+        }
+    }, [user]);
+
+    const copyWebhookUrl = () => {
+        if (!webhookKey) return;
+        const url = `https://${webhookKey}.conectalab.sbs/webhook/instagram`;
+        navigator.clipboard.writeText(url);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+    };
+
     const deleteLead = async (id: string) => {
         try {
-            const { error } = await supabase.from('leads').delete().eq('id', id);
+            const { error } = await supabase.from('leads_instagram').delete().eq('id', id);
             if (error) throw error;
             setLeads(prev => prev.filter(l => l.id !== id));
             setDeleteConfirm(null);
@@ -154,7 +174,7 @@ const InstagramLeadSearch: React.FC = () => {
         setLoading(true);
         try {
             const { error } = await supabase
-                .from('leads')
+                .from('leads_instagram')
                 .delete()
                 .eq('user_id', user?.id)
                 .eq('source', 'instagram')
@@ -270,9 +290,30 @@ const InstagramLeadSearch: React.FC = () => {
                                     Conexão Segura
                                 </h4>
                                 <ol className="list-none space-y-2 ml-1 text-slate-500 border-l-2 border-slate-100 pl-4">
-                                    <li>Vá para <a href="/settings" className="font-bold text-blue-500 hover:underline">Configurações &rarr; Webhooks</a> aqui no Nexus.</li>
-                                    <li>Se ainda não gerou, clique em "Gerar URL Exclusiva".</li>
-                                    <li>Copie a <strong>URL Exclusiva Completa</strong>.</li>
+                                    <li>Vá para <a href="/settings" className="font-bold text-blue-500 hover:underline">Configurações &rarr; Webhooks</a> e gere sua URL exclusiva caso ainda não o tenha feito.</li>
+                                    <li>Copie a <strong>URL Exclusiva Completa</strong> clicando no botão abaixo:</li>
+                                    {webhookKey ? (
+                                        <div className="mt-2 mb-2 p-3 bg-slate-50 rounded-xl border border-slate-200">
+                                            <p className="text-[10px] text-slate-400 mb-1.5 font-medium uppercase tracking-wider">Seu Webhook para Instagram</p>
+                                            <div className="p-3 bg-white border border-slate-200 rounded-lg flex items-center justify-between gap-3 shadow-inner mt-1">
+                                                <code className="text-xs font-mono text-slate-600 truncate flex-1 select-all">
+                                                    https://{webhookKey}.conectalab.sbs/webhook/instagram
+                                                </code>
+                                                <button 
+                                                    onClick={copyWebhookUrl}
+                                                    className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-bold rounded transition-colors ${copied ? 'bg-emerald-500 text-white' : 'bg-slate-900 text-white hover:bg-slate-800'}`}
+                                                >
+                                                    {copied ? <CheckCircle2 size={12} /> : <Copy size={12} />}
+                                                    {copied ? 'Copiado!' : 'Copiar'}
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="mt-2 mb-2 p-3 bg-amber-50 rounded-xl border border-amber-100 flex items-start gap-2">
+                                            <AlertCircle size={14} className="text-amber-500 shrink-0 mt-0.5" />
+                                            <p className="text-[10px] text-amber-700">Você ainda não gerou sua Chave na aba de Configurações.</p>
+                                        </div>
+                                    )}
                                     <li>Abra o popup da extensão do Instagram no seu navegador e <strong>cole o Webhook</strong> na área "Configurar Webhook".</li>
                                     <li>Pronto! Tudo que a extensão extrair cairá instantaneamente na tabela abaixo.</li>
                                 </ol>
@@ -566,6 +607,7 @@ const InstagramLeadSearch: React.FC = () => {
                 isOpen={isSaveModalOpen}
                 onClose={() => setIsSaveModalOpen(false)}
                 selectedLeadIds={selectedLeads}
+                sourceTable="leads_instagram"
                 onSuccess={() => {
                     setLeads(prev => prev.filter(l => !selectedLeads.includes(l.id)));
                     setSelectedLeads([]);

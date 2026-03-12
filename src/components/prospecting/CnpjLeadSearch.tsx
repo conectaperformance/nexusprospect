@@ -25,8 +25,11 @@ import {
     X,
     ChevronLeft,
     ChevronRight,
+    Copy,
+    FileText,
 } from 'lucide-react';
 import SaveLeadsModal from './SaveLeadsModal';
+import CnpjDetailsModal from './CnpjDetailsModal';
 
 interface CnpjLead {
     id: string;
@@ -57,8 +60,13 @@ const CnpjLeadSearch: React.FC = () => {
     const [showInstructions, setShowInstructions] = useState(false);
     const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
+    const [webhookKey, setWebhookKey] = useState<string | null>(null);
+    const [copied, setCopied] = useState(false);
     const [selectedLeads, setSelectedLeads] = useState<string[]>([]);
     const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
+    
+    // Modal state for CNPJ details
+    const [selectedLeadDetails, setSelectedLeadDetails] = useState<CnpjLead | null>(null);
 
     const [currentPage, setCurrentPage] = useState(1);
 
@@ -75,10 +83,9 @@ const CnpjLeadSearch: React.FC = () => {
 
         try {
             const { data, error } = await supabase
-                .from('leads')
+                .from('leads_cnpj')
                 .select('*')
                 .eq('user_id', user.id)
-                .eq('source', 'cnpj')
                 .is('client_id', null)
                 .order('created_at', { ascending: false })
                 .limit(200);
@@ -110,6 +117,24 @@ const CnpjLeadSearch: React.FC = () => {
     }, [user, isActivelyPolling]);
 
     useEffect(() => {
+        if (user) {
+            const fetchKey = async () => {
+                const { data, error } = await supabase.rpc('get_webhook_key', { p_user_id: user.id });
+                if (!error) setWebhookKey(data || null);
+            };
+            fetchKey();
+        }
+    }, [user]);
+
+    const copyWebhookUrl = () => {
+        if (!webhookKey) return;
+        const url = `https://${webhookKey}.conectalab.sbs/webhook/cnpj`;
+        navigator.clipboard.writeText(url);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+    };
+
+    useEffect(() => {
         fetchLeads();
 
         intervalRef.current = setInterval(() => {
@@ -136,7 +161,7 @@ const CnpjLeadSearch: React.FC = () => {
 
     const deleteLead = async (id: string) => {
         try {
-            const { error } = await supabase.from('leads').delete().eq('id', id);
+            const { error } = await supabase.from('leads_cnpj').delete().eq('id', id);
             if (error) throw error;
             setLeads(prev => prev.filter(l => l.id !== id));
             setDeleteConfirm(null);
@@ -153,7 +178,7 @@ const CnpjLeadSearch: React.FC = () => {
         setLoading(true);
         try {
             const { error } = await supabase
-                .from('leads')
+                .from('leads_cnpj')
                 .delete()
                 .eq('user_id', user?.id)
                 .eq('source', 'cnpj')
@@ -269,9 +294,30 @@ const CnpjLeadSearch: React.FC = () => {
                                     Conexão Segura
                                 </h4>
                                 <ol className="list-none space-y-2 ml-1 text-slate-500 border-l-2 border-slate-100 pl-4">
-                                    <li>Vá para <a href="/settings" className="font-bold text-blue-500 hover:underline">Configurações &rarr; Webhooks</a> aqui no Nexus.</li>
-                                    <li>Se ainda não gerou, clique em "Gerar URL Exclusiva".</li>
-                                    <li>Copie a <strong>URL Exclusiva Completa</strong>.</li>
+                                    <li>Vá para <a href="/settings" className="font-bold text-blue-500 hover:underline">Configurações &rarr; Webhooks</a> e gere sua URL exclusiva caso ainda não o tenha feito.</li>
+                                    <li>Copie a <strong>URL Exclusiva Completa</strong> clicando no botão abaixo:</li>
+                                    {webhookKey ? (
+                                        <div className="mt-2 mb-2 p-3 bg-slate-50 rounded-xl border border-slate-200">
+                                            <p className="text-[10px] text-slate-400 mb-1.5 font-medium uppercase tracking-wider">Seu Webhook para CNPJ</p>
+                                            <div className="p-3 bg-white border border-slate-200 rounded-lg flex items-center justify-between gap-3 shadow-inner mt-1">
+                                                <code className="text-xs font-mono text-slate-600 truncate flex-1 select-all">
+                                                    https://{webhookKey}.conectalab.sbs/webhook/cnpj
+                                                </code>
+                                                <button 
+                                                    onClick={copyWebhookUrl}
+                                                    className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-bold rounded transition-colors ${copied ? 'bg-emerald-500 text-white' : 'bg-slate-900 text-white hover:bg-slate-800'}`}
+                                                >
+                                                    {copied ? <CheckCircle2 size={12} /> : <Copy size={12} />}
+                                                    {copied ? 'Copiado!' : 'Copiar'}
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="mt-2 mb-2 p-3 bg-amber-50 rounded-xl border border-amber-100 flex items-start gap-2">
+                                            <AlertCircle size={14} className="text-amber-500 shrink-0 mt-0.5" />
+                                            <p className="text-[10px] text-amber-700">Você ainda não gerou sua Chave na aba de Configurações.</p>
+                                        </div>
+                                    )}
                                     <li>Abra o popup da extensão de CNPJ no seu navegador e <strong>cole o Webhook</strong> na área "Configurar Webhook".</li>
                                     <li>Pronto! Tudo que a extensão extrair cairá instantaneamente na tabela abaixo.</li>
                                 </ol>
@@ -404,7 +450,13 @@ const CnpjLeadSearch: React.FC = () => {
                                                                 </div>
                                                             </td>
                                                             <td className="px-2 py-3.5">
-                                                                <span className="font-bold text-slate-800 text-sm">{lead.name}</span>
+                                                                <button 
+                                                                    onClick={() => setSelectedLeadDetails(lead)}
+                                                                    className="text-left font-bold text-slate-800 text-sm hover:text-indigo-600 transition-colors flex items-center gap-1.5 group/name"
+                                                                >
+                                                                    {lead.name}
+                                                                    <FileText size={14} className="opacity-0 group-hover/name:opacity-100 text-indigo-400 transition-opacity" />
+                                                                </button>
                                                                 {(lead.specialties || lead.address) && (
                                                                     <div className="text-[10px] text-slate-400 mt-1 flex flex-col gap-0.5">
                                                                         {lead.specialties && <span className="truncate max-w-[250px]">{lead.specialties}</span>}
@@ -416,7 +468,7 @@ const CnpjLeadSearch: React.FC = () => {
                                                                 {lead.phone ? (
                                                                     <span className="flex w-fit items-center gap-1.5 text-xs text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-md font-bold border border-emerald-100">
                                                                         <Phone size={10} className="fill-emerald-600" />
-                                                                        {lead.phone}
+                                                                        {lead.phone.replace(/whatsapp/ig, '').trim()}
                                                                     </span>
                                                                 ) : (
                                                                     <span className="text-[11px] text-slate-300 font-medium italic">Sem telefone</span>
@@ -565,10 +617,18 @@ const CnpjLeadSearch: React.FC = () => {
                 isOpen={isSaveModalOpen}
                 onClose={() => setIsSaveModalOpen(false)}
                 selectedLeadIds={selectedLeads}
+                sourceTable="leads_cnpj"
                 onSuccess={() => {
                     setLeads(prev => prev.filter(l => !selectedLeads.includes(l.id)));
                     setSelectedLeads([]);
                 }}
+            />
+
+            {/* CNPJ Details Modal (Receita Federal) */}
+            <CnpjDetailsModal 
+                isOpen={!!selectedLeadDetails}
+                lead={selectedLeadDetails}
+                onClose={() => setSelectedLeadDetails(null)}
             />
         </div>
     );

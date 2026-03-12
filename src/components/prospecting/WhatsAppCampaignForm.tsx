@@ -767,7 +767,7 @@ export const WhatsAppCampaignForm: React.FC = () => {
                                                     <p className="font-semibold text-sm text-slate-800 truncate">{lead.name || 'Lead sem nome'}</p>
                                                     <p className="text-[11px] font-medium text-slate-400 truncate">
                                                         {lead.company && <span className="mr-2">{lead.company}</span>}
-                                                        {lead.phone && <span>{lead.phone}</span>}
+                                                        {lead.phone && <span>{lead.phone.replace(/whatsapp/ig, '').trim()}</span>}
                                                     </p>
                                                 </div>
                                             </label>

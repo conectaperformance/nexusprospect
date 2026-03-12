@@ -302,7 +302,7 @@ export const ClientLeadsTab: React.FC<ClientLeadsTabProps> = ({ clientId }) => {
                                         {filteredLeads.map(lead => (
                                             <tr key={lead.id} className="hover:bg-slate-50/50 transition-colors group">
                                                 <td className="px-6 py-4 font-bold text-slate-900">{lead.name}</td>
-                                                <td className="px-6 py-4 font-mono text-sm text-slate-600">{lead.phone || '-'}</td>
+                                                <td className="px-6 py-4 font-mono text-sm text-slate-600">{lead.phone ? lead.phone.replace(/whatsapp/ig, '').trim() : '-'}</td>
                                                 <td className="px-6 py-4 text-slate-500 text-sm">{lead.company || '-'}</td>
                                                 <td className="px-6 py-4 text-right">
                                                     <button

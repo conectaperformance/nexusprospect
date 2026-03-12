@@ -26,6 +26,7 @@ import {
     X,
     ChevronLeft,
     ChevronRight,
+    Copy,
 } from 'lucide-react';
 import SaveLeadsModal from './SaveLeadsModal';
 
@@ -57,7 +58,8 @@ const GoogleMapsLeadSearch: React.FC = () => {
     const [showInstructions, setShowInstructions] = useState(false);
     const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
-    // Seleção de Leads
+    const [webhookKey, setWebhookKey] = useState<string | null>(null);
+    const [copied, setCopied] = useState(false);
     const [selectedLeads, setSelectedLeads] = useState<string[]>([]);
     const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
 
@@ -143,6 +145,24 @@ const GoogleMapsLeadSearch: React.FC = () => {
         setIsActivelyPolling(false);
         setPollInterval(IDLE_POLL_INTERVAL);
         unchangedTicksRef.current = 0;
+    };
+
+    useEffect(() => {
+        if (user) {
+            const fetchKey = async () => {
+                const { data, error } = await supabase.rpc('get_webhook_key', { p_user_id: user.id });
+                if (!error) setWebhookKey(data || null);
+            };
+            fetchKey();
+        }
+    }, [user]);
+
+    const copyWebhookUrl = () => {
+        if (!webhookKey) return;
+        const url = `https://${webhookKey}.conectalab.sbs/webhook?source=google_maps`;
+        navigator.clipboard.writeText(url);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
     };
 
     // Abrir Google Maps com o termo de busca e ligar motores
@@ -296,10 +316,31 @@ const GoogleMapsLeadSearch: React.FC = () => {
                                     Conexão Segura
                                 </h4>
                                 <ol className="list-none space-y-2 ml-1 text-slate-500 border-l-2 border-slate-100 pl-4">
-                                    <li>Vá para <a href="/settings" className="font-bold text-blue-500 hover:underline">Configurações &rarr; Webhooks</a> aqui no Nexus.</li>
-                                    <li>Se ainda não gerou, clique em "Gerar URL Exclusiva".</li>
-                                    <li>Copie a <strong>URL Exclusiva Completa</strong> (algo como <code className="bg-slate-100 text-[9px] px-1 py-0.5 rounded text-slate-400">https://suainstancia123.conectalab.sbs/webhook</code>).</li>
-                                    <li>Abra o popup da extensão do Google Maps no seu navegador navegando e <strong>cole o Webhook</strong> na área "Configurar Webhook".</li>
+                                    <li>Vá para <a href="/settings" className="font-bold text-blue-500 hover:underline">Configurações &rarr; Webhooks</a> e gere sua URL exclusiva caso ainda não o tenha feito.</li>
+                                    <li>Copie a <strong>URL Exclusiva Completa</strong> clicando no botão abaixo:</li>
+                                    {webhookKey ? (
+                                        <div className="mt-2 mb-2 p-3 bg-slate-50 rounded-xl border border-slate-200">
+                                            <p className="text-[10px] text-slate-400 mb-1.5 font-medium uppercase tracking-wider">Seu Webhook para Google Maps</p>
+                                            <div className="flex items-center gap-2">
+                                                <code className="flex-1 bg-white border border-slate-200 text-[10px] px-2 py-1.5 rounded text-slate-600 truncate font-mono">
+                                                    https://{webhookKey}.conectalab.sbs/webhook?source=google_maps
+                                                </code>
+                                                <button
+                                                    onClick={copyWebhookUrl}
+                                                    className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-bold rounded transition-colors ${copied ? 'bg-emerald-500 text-white' : 'bg-slate-900 text-white hover:bg-slate-800'}`}
+                                                >
+                                                    {copied ? <CheckCircle2 size={12} /> : <Copy size={12} />}
+                                                    {copied ? 'Copiado!' : 'Copiar'}
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="mt-2 mb-2 p-3 bg-amber-50 rounded-xl border border-amber-100 flex items-start gap-2">
+                                            <AlertCircle size={14} className="text-amber-500 shrink-0 mt-0.5" />
+                                            <p className="text-[10px] text-amber-700">Você ainda não gerou sua Chave na aba de Configurações.</p>
+                                        </div>
+                                    )}
+                                    <li>Abra o popup da extensão do Google Maps no seu navegador e <strong>cole o Webhook</strong> na área "Configurar Webhook".</li>
                                     <li>Pronto! Tudo que a extensão extrair cairá instantaneamente na tabela abaixo.</li>
                                 </ol>
                             </div>

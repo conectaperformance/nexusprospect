@@ -9,9 +9,10 @@ interface SaveLeadsModalProps {
     onClose: () => void;
     selectedLeadIds: string[];
     onSuccess: () => void;
+    sourceTable?: string;
 }
 
-export default function SaveLeadsModal({ isOpen, onClose, selectedLeadIds, onSuccess }: SaveLeadsModalProps) {
+export default function SaveLeadsModal({ isOpen, onClose, selectedLeadIds, onSuccess, sourceTable = 'leads' }: SaveLeadsModalProps) {
     const { user } = useAuth();
     const [clients, setClients] = useState<any[]>([]);
     const [folders, setFolders] = useState<any[]>([]);
@@ -126,16 +127,48 @@ export default function SaveLeadsModal({ isOpen, onClose, selectedLeadIds, onSuc
         if (!selectedClientId || !selectedFolderId || selectedLeadIds.length === 0) return;
         setSaving(true);
         try {
-            // Update the selected leads to point to the new client and folder
-            const { error } = await supabase
-                .from('leads')
-                .update({ 
-                    client_id: selectedClientId, 
-                    folder_id: selectedFolderId 
-                })
-                .in('id', selectedLeadIds);
+            if (sourceTable === 'leads') {
+                // Original behavior: update in place
+                const { error } = await supabase
+                    .from('leads')
+                    .update({ 
+                        client_id: selectedClientId, 
+                        folder_id: selectedFolderId 
+                    })
+                    .in('id', selectedLeadIds);
 
-            if (error) throw error;
+                if (error) throw error;
+            } else {
+                // Staging table behavior: copy to leads CRM, then delete from staging
+                const { data: leadsToMove, error: fetchError } = await supabase
+                    .from(sourceTable)
+                    .select('*')
+                    .in('id', selectedLeadIds);
+                    
+                if (fetchError) throw fetchError;
+
+                if (leadsToMove && leadsToMove.length > 0) {
+                    const mappedLeads = leadsToMove.map(lead => ({
+                        ...lead,
+                        phone: lead.phone ? lead.phone.replace(/whatsapp/ig, '').trim() : lead.phone,
+                        client_id: selectedClientId,
+                        folder_id: selectedFolderId
+                    }));
+
+                    const { error: insertError } = await supabase
+                        .from('leads')
+                        .insert(mappedLeads);
+                    
+                    if (insertError) throw insertError;
+
+                    const { error: deleteError } = await supabase
+                        .from(sourceTable)
+                        .delete()
+                        .in('id', selectedLeadIds);
+                    
+                    if (deleteError) throw deleteError;
+                }
+            }
 
             onSuccess();
             onClose();

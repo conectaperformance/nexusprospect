@@ -22,14 +22,11 @@ serve(async (req) => {
         }
 
         // 2. Extrair a chave do webhook (webhook_key)
-        // Pode vir de '?key=XXX', ou do header 'Host'/'X-Forwarded-Host' (ex: nexus360.CHAVE.site)
         const url = new URL(req.url)
         let webhookKey = url.searchParams.get('key')
 
         if (!webhookKey) {
-            // Tentar extrair do hostname (útil se configurado um reverse proxy curinga)
             const host = req.headers.get('x-forwarded-host') || req.headers.get('host') || ''
-            // Novo formato: SUBDOMINIO.conectalab.sbs (ex: chavedousuario.conectalab.sbs)
             const hostMatch = host.match(/^([^.]+)\.conectalab\.sbs$/i)
             if (hostMatch && hostMatch[1]) {
                 webhookKey = hostMatch[1]
@@ -83,13 +80,7 @@ serve(async (req) => {
             })
         }
 
-        let outerSource: string | null = null;
         if (!Array.isArray(incomingLeads)) {
-            // Preservar o source do objeto pai caso exista
-            if (incomingLeads && incomingLeads.source) {
-                outerSource = incomingLeads.source;
-            }
-
             // Se o payload for um objeto embrulhado { source: '...', items: [...] } (Extensão CNPJ/CDD)
             if (incomingLeads && Array.isArray(incomingLeads.items)) {
                 incomingLeads = incomingLeads.items;
@@ -107,17 +98,10 @@ serve(async (req) => {
             })
         }
 
-        // 6. Mapear os dados recebidos para o formato do banco de dados
-        const sourceUrl = url.searchParams.get('source');
-
+        // 6. Mapear os dados recebidos para o formato do banco de dados (Forçado para Instagram)
         const mappedLeads = incomingLeads.map((item: any) => {
-            console.log("Recebido lead:", JSON.stringify(item));
+            console.log("Recebido lead Instagram:", JSON.stringify(item).substring(0, 500));
             
-            let finalSource = sourceUrl || outerSource || item.source || 'google_maps';
-            if (finalSource === 'cdd-extension') {
-                finalSource = 'cnpj';
-            }
-
             return {
                 user_id: userId,
                 name: item.nome_empresa || item.name || item.razao_social || item.Nome || item.razaoSocial || item.fantasia || 'Sem Nome',
@@ -128,7 +112,7 @@ serve(async (req) => {
                 rating: item.rating ? String(item.rating).replace(',', '.') : null,
                 reviews: item.reviews ? String(item.reviews).replace(/\D/g, '') : null,
                 specialties: item.especialidades || item.specialties || item.cnpj || item.cnae_principal_descricao || item.atividade_principal || null,
-                source: finalSource,
+                source: 'instagram',
                 search_term: JSON.stringify(item).substring(0, 1000),
             };
         });
@@ -140,7 +124,7 @@ serve(async (req) => {
         for (let i = 0; i < mappedLeads.length; i += BATCH_SIZE) {
             const batch = mappedLeads.slice(i, i + BATCH_SIZE);
             const { error: insertErr } = await supabaseAdmin
-                .from('leads')
+                .from('leads_instagram') // <--- Inserindo na tabela dedicada
                 .insert(batch)
             
             if (insertErr) {
@@ -153,14 +137,14 @@ serve(async (req) => {
         // 7. Sucesso!
         return new Response(JSON.stringify({
             success: true,
-            message: `${insertedCount} leads recebidos e inseridos com sucesso.`
+            message: `${insertedCount} leads recebidos e inseridos com sucesso na tabela leads_instagram.`
         }), {
             status: 200,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         })
 
     } catch (error: any) {
-        console.error('Erro na Edge Function receive-leads:', error)
+        console.error('Erro na Edge Function receive-leads-instagram:', error)
         return new Response(JSON.stringify({ error: 'Erro interno no servidor.', details: error.message }), {
             status: 500,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
